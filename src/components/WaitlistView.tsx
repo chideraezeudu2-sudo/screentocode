@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Check, ArrowRight, CornerDownRight, ShieldAlert, Sparkles, AlertCircle } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, getWaitlistDisplayCount } from '../lib/supabase';
 
 interface WaitlistViewProps {
   onNavigate: (tab: 'waitlist' | 'home' | 'pricing' | 'success' | 'portal' | 'privacy' | 'terms') => void;
@@ -16,6 +16,28 @@ export default function WaitlistView({ onNavigate }: WaitlistViewProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [displayCount, setDisplayCount] = useState(5);
+  const [spotsLeft, setSpotsLeft] = useState(15);
+  const [progressPercent, setProgressPercent] = useState(25);
+
+  // Fetch the dynamic waitlist count on mount
+  useEffect(() => {
+    const fetchCount = async () => {
+      const count = await getWaitlistDisplayCount();
+      setDisplayCount(count);
+      setSpotsLeft(20 - count);
+      setProgressPercent((count / 20) * 100);
+    };
+    fetchCount();
+  }, []);
+
+  // Refresh count after successful submission
+  const refreshCount = async () => {
+    const count = await getWaitlistDisplayCount();
+    setDisplayCount(count);
+    setSpotsLeft(20 - count);
+    setProgressPercent((count / 20) * 100);
+  };
 
   const getSupabaseErrorMessage = (err: any): string => {
     if (!err) return '';
@@ -62,6 +84,7 @@ export default function WaitlistView({ onNavigate }: WaitlistViewProps) {
         throw insertError;
       }
       setIsSubmitted(true);
+      await refreshCount(); // Refresh the display count after signup
     } catch (err: any) {
       const detailedMessage = getSupabaseErrorMessage(err);
       console.error('Supabase insert error detailed:', detailedMessage);
@@ -106,6 +129,7 @@ export default function WaitlistView({ onNavigate }: WaitlistViewProps) {
         throw insertError;
       }
       setIsSubmitted(true);
+      await refreshCount(); // Refresh the display count after signup
     } catch (err: any) {
       const detailedMessage = getSupabaseErrorMessage(err);
       console.error('Supabase insert error detailed:', detailedMessage);
@@ -142,15 +166,15 @@ export default function WaitlistView({ onNavigate }: WaitlistViewProps) {
             <div className="absolute top-0 left-0 bottom-0 w-[3px] bg-accent-emerald" />
             <div className="flex justify-between items-center text-xs font-mono mb-2.5">
               <span className="text-zinc-500 uppercase tracking-widest font-black">Live Reservation Speed</span>
-              <span className="text-[#10B981] font-black">5 / 20 PUBLIC SPOTS FILLED</span>
+              <span className="text-[#10B981] font-black">{displayCount} / 20 PUBLIC SPOTS FILLED</span>
             </div>
             {/* ProgressBar */}
             <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
-              <div className="bg-gradient-to-r from-accent-emerald to-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: '25%' }} />
+              <div className="bg-gradient-to-r from-accent-emerald to-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
             </div>
             <div className="flex justify-between items-center text-[10px] text-zinc-500 font-sans font-extrabold uppercase mt-2 tracking-wider">
-              <span>5 adjusters on track</span>
-              <span className="text-white">15 SPOTS LEFT</span>
+              <span>{displayCount} adjusters on track</span>
+              <span className="text-white">{spotsLeft} SPOTS LEFT</span>
             </div>
           </div>
 
